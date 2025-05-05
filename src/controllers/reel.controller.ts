@@ -15,7 +15,6 @@ export class ReelController {
   // Upload reel by seller
   static async uploadReel(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      console.log("hii")
       const { id } = req.params;
       const seller = await SellerSchema.findById(id);
       if (!seller) {
@@ -38,7 +37,6 @@ export class ReelController {
         caption,
         storeId
       });
-      console.log(uploadedReel)
       res.status(201).json({
         success: true,
         data: uploadedReel,
@@ -54,7 +52,13 @@ export class ReelController {
   static async deleteReel(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
-      const reels = await Reel.findById(id);
+      if(!id){
+        res
+        .status(400)
+        .json({ message: "Reel Id is missing" });
+      return;
+      }
+      const reels = await Reel.findByIdAndDelete(id);
       res.status(201).json({
         success: true,
         data: reels,
@@ -69,12 +73,21 @@ export class ReelController {
   static async getAllReel(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params;
+      if(!id){
+      }
       const reels = await Reel.find({sellerId:id}).populate("likes dislikes comments");
       const reels2=await Reel.aggregate([
         { $match: { sellerId: id } },
-      
-        // Unwind likes array
+        {
+          $lookup: {
+            from: "stores",
+            localField: "storeId",
+            foreignField: "_id",
+            as: "store"
+          }
+        },
         { $unwind: { path: "$likes", preserveNullAndEmptyArrays: true } },
+   
         {
           $lookup: {
             from: "users",
@@ -90,7 +103,7 @@ export class ReelController {
           $group: {
             _id: "$_id",
             doc: { $first: "$$ROOT" },
-            likes: { $push: "$likes.user" }
+            likes: { $push: "$likes.user._id" }
           }
         },
         {
@@ -118,7 +131,7 @@ export class ReelController {
           $group: {
             _id: "$_id",
             doc: { $first: "$$ROOT" },
-            dislikes: { $push: "$dislikes.user" }
+            dislikes: { $push: "$dislikes.user_id" }
           }
         },
         {
@@ -128,41 +141,53 @@ export class ReelController {
             }
           }
         },
-      
         // Repeat for comments
-        { $unwind: { path: "$comments", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "users",
-            localField: "comments.userId",
-            foreignField: "_id",
-            as: "comments.user"
-          }
-        },
-        {
-          $unwind: { path: "$comments.user", preserveNullAndEmptyArrays: true }
-        },
-        {
-          $group: {
-            _id: "$_id",
-            doc: { $first: "$$ROOT" },
-            comments: {
-              $push: {
-                comment: "$comments.comment",
-                user: "$comments.user"
+            let: { comments: "$comments" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", { $map: { input: "$$comments", as: "c", in: "$$c.userId" } }]
+                  }
+                }
               }
-            }
+            ],
+            as: "commentUsers"
           }
         },
         {
-          $replaceRoot: {
-            newRoot: {
-              $mergeObjects: ["$doc", { "comments": "$comments" }]
+          $addFields: {
+            comments: {
+              $map: {
+                input: "$comments",
+                as: "c",
+                in: {
+                  $mergeObjects: [
+                    "$$c",
+                    {
+                      user: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: "$commentUsers",
+                              as: "u",
+                              cond: { $eq: ["$$u._id", "$$c.userId"] }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
             }
           }
         }
       ]);
-      console.log(reels2)
       res.status(201).json({
         success: true,
         data: reels,
@@ -187,7 +212,7 @@ export class ReelController {
           }
         },
         // Unwind likes array
-        { $unwind: { path: "$likes", preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: "$likes", preserveNullAndEmptyArrays: true } },
    
         {
           $lookup: {
@@ -204,7 +229,7 @@ export class ReelController {
           $group: {
             _id: "$_id",
             doc: { $first: "$$ROOT" },
-            likes: { $push: "$likes.user" }
+            likes: { $push: "$likes.user._id" }
           }
         },
         {
@@ -232,7 +257,7 @@ export class ReelController {
           $group: {
             _id: "$_id",
             doc: { $first: "$$ROOT" },
-            dislikes: { $push: "$dislikes.user" }
+            dislikes: { $push: "$dislikes.user_id" }
           }
         },
         {
@@ -244,34 +269,48 @@ export class ReelController {
         },
       
         // Repeat for comments
-        { $unwind: { path: "$comments", preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
             from: "users",
-            localField: "comments.userId",
-            foreignField: "_id",
-            as: "comments.user"
-          }
-        },
-        {
-          $unwind: { path: "$comments.user", preserveNullAndEmptyArrays: true }
-        },
-        {
-          $group: {
-            _id: "$_id",
-            doc: { $first: "$$ROOT" },
-            comments: {
-              $push: {
-                comment: "$comments.comment",
-                user: "$comments.user"
+            let: { comments: "$comments" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $in: ["$_id", { $map: { input: "$$comments", as: "c", in: "$$c.userId" } }]
+                  }
+                }
               }
-            }
+            ],
+            as: "commentUsers"
           }
         },
         {
-          $replaceRoot: {
-            newRoot: {
-              $mergeObjects: ["$doc", { "comments": "$comments" }]
+          $addFields: {
+            comments: {
+              $map: {
+                input: "$comments",
+                as: "c",
+                in: {
+                  $mergeObjects: [
+                    "$$c",
+                    {
+                      user: {
+                        $arrayElemAt: [
+                          {
+                            $filter: {
+                              input: "$commentUsers",
+                              as: "u",
+                              cond: { $eq: ["$$u._id", "$$c.userId"] }
+                            }
+                          },
+                          0
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
             }
           }
         }
@@ -394,10 +433,127 @@ try{
       },
       { new: true }
     );
+    const objectId = new mongoose.Types.ObjectId(updatedReel._id);
+    const updatedreel=  await Reel.aggregate([
+      {$match:{_id:objectId}},
+      {
+        $lookup: {
+          from: "stores",
+          localField: "storeId",
+          foreignField: "_id",
+          as: "store"
+        }
+      },
+      // Unwind likes array
+        { $unwind: { path: "$likes", preserveNullAndEmptyArrays: true } },
+ 
+      {
+        $lookup: {
+          from: "users",
+          localField: "likes.userId",
+          foreignField: "_id",
+          as: "likes.user"
+        }
+      },
+      {
+        $unwind: { path: "$likes.user", preserveNullAndEmptyArrays: true }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          doc: { $first: "$$ROOT" },
+          likes: { $push: "$likes.user._id" }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: ["$doc", { "likes": "$likes" }]
+          }
+        }
+      },
+    
+      // Repeat for dislikes
+      { $unwind: { path: "$dislikes", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "dislikes.userId",
+          foreignField: "_id",
+          as: "dislikes.user"
+        }
+      },
+      {
+        $unwind: { path: "$dislikes.user", preserveNullAndEmptyArrays: true }
+      },
+      {
+        $group: {
+          _id: "$_id",
+          doc: { $first: "$$ROOT" },
+          dislikes: { $push: "$dislikes.user_id" }
+        }
+      },
+      {
+        $replaceRoot: {
+          newRoot: {
+            $mergeObjects: ["$doc", { "dislikes": "$dislikes" }]
+          }
+        }
+      },
+    
+      // Repeat for comments
+      {
+        $lookup: {
+          from: "users",
+          let: { comments: "$comments" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ["$_id", { $map: { input: "$$comments", as: "c", in: "$$c.userId" } }]
+                }
+              }
+            }
+          ],
+          as: "commentUsers"
+        }
+      },
+      {
+        $addFields: {
+          comments: {
+            $map: {
+              input: "$comments",
+              as: "c",
+              in: {
+                $mergeObjects: [
+                  "$$c",
+                  {
+                    user: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$commentUsers",
+                            as: "u",
+                            cond: { $eq: ["$$u._id", "$$c.userId"] }
+                          }
+                        },
+                        0
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ]);
+    
     res.status(200).json({
       success: true,
-      data: updatedReel,
-  });
+      data: updatedreel
+    });
+   
 }catch (err: any) {
   console.error("Error:", err);
   next({ code: 500, message: err.message || "Internal Server Error", error: err });
@@ -414,14 +570,12 @@ static async shareReel(req: Request, res: Response, next: NextFunction): Promise
       if (!reel) {
         return next({ code: 400, message: "No reel found", error: "incorrect reel id" });
       }
-    
-     
       const updatedReel = await Reel.findByIdAndUpdate(
-          id,
-          { $inc: { shares: share ? +1 : -1 } }, 
-          { new: true } 
+        id,
+        { $inc: { shares: 1 } }, 
+        { new: true }
       );
-  
+      
       res.status(200).json({
           success: true,
           data: updatedReel,

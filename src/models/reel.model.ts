@@ -54,7 +54,7 @@ export const reelSchema = new Schema({
         required: true,
         default:"store"
     }
-});
+},{timestamps:true});
 
 const Reel: Model<any> = model<any>("reel", reelSchema);
 export default Reel;

@@ -13,6 +13,7 @@ export default class ReelRoutes {
     router.route("/dislike/:id/:userId").post(ReelController.dislikeReel)
     router.route("/comment/:id/:userId").post(ReelController.addComment)
     router.route("/share/:id").post(ReelController.shareReel)
+    router.route("/delete/:id").delete(ReelController.deleteReel)
     return router;
   }
 }

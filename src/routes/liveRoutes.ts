@@ -13,6 +13,7 @@ export class LiveChatRoute {
     router.get("/getStoreChats/:storeId", LiveChatController.getStoreChats);
 
     router.get("/meeting/:meetingId", LiveChatController.getMeeting);
+    router.delete("/meeting/:meetingId", LiveChatController.deleteMeeting);
     router.post("/meeting", LiveChatController.createMeeting);
     router.get("/meetings", LiveChatController.getAllMeetings);
 
@@ -21,6 +22,7 @@ export class LiveChatRoute {
     router.get("/order/:id", LiveChatController.getOrder);
     router.put("/updateCart/:customerId", LiveChatController.updateCart);
     router.get("/videoRequests", LiveChatController.getAllAppointments);
+    router.delete("/videoRequests/:id", LiveChatController.deleteAppointment);
     router.put("/videoRequests/:requestId", LiveChatController.updateAppointment);
     router.post("/createzoom", LiveChatController.createZoomMeeting);
 

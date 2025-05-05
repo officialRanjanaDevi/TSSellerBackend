@@ -62,7 +62,7 @@ export class LiveChatController {
   ): Promise<void> {
     const { meetingId } = req.params;
     try {
-      const meeting = await Meeting.findById(meetingId);
+      const meeting = await Meeting.findById(meetingId).populate("storeId");
       if (meeting) {
         res.json(meeting);
       } else {
@@ -72,7 +72,23 @@ export class LiveChatController {
       res.status(500).json({ error: "Internal server error" });
     }
   }
-
+  static async deleteMeeting(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    const { meetingId } = req.params;
+    try {
+      const meeting = await Meeting.findByIdAndDelete(meetingId);
+      if (meeting) {
+        res.status(200).json({ error: "Meeting deleted" });
+      } else {
+        res.status(404).json({ error: "Meeting not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
   // Create a new meeting
   static async createMeeting(
     req: Request,
@@ -270,7 +286,23 @@ export class LiveChatController {
       console.log("error", error);
     }
   }
-
+  static async deleteAppointment(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const {id}=req.params
+      const meeting = await Appointment.findByIdAndDelete(id);
+      if(!meeting){
+        res.status(400).json({ error: "Meeting not found" });
+      }
+      res.status(200).json({ message: "Appointment deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+      console.log("error", error);
+    }
+  }
   static async createZoomMeeting(req: Request, res: Response): Promise<void> {
     const { title, date, time, sellerId, storeId, users, products } = req.body;
     try {
@@ -282,14 +314,12 @@ export class LiveChatController {
         const meetingDuration = 60; // Meeting duration in minutes
 
         const togeneratejwt = await fetch(
-          "https://zoom.us/oauth/token?grant_type=account_credentials&account_id=iN4p2eueRrSMgooHt4JDHw",
+          "https://zoom.us/oauth/token?grant_type=account_credentials&account_id=MBQ2SwPgRGi-OYmLlHyzQQ",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
-              Authorization: `Basic ${Buffer.from(
-                `Yv5uLHuQSWqNEq76HgN2eA:sPnN5uuSxfwKhRk8PtRmp1dlKDAIrWCS`
-              ).toString("base64")}`,
+              Authorization: 'Basic eGF6VG9vYXFUeks4NFNSdENnRXJldzpGQVQwQmQ2UkIzNHJPdVd1NTNrQmVFc2hZcTlydmtCQw==',
             },
           }
         );

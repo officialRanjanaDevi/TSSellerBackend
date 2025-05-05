@@ -44,16 +44,7 @@ const app = express();
 const server = http.createServer(app);
 const port = process.env.PORT || 5000;
 
-const allowedOrigins = [
-  "https://seller.trialshopy.com",
-  "https://www.seller.trialshopy.com",
-  "https://admin.trialshopy.com",
-  "https://www.admin.trialshopy.com",
-  "http://13.202.102.83:5174",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  process.env.Frontend_Endpoint,
-];
+
 app.use(bodyParser.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 app.use(express.json());
